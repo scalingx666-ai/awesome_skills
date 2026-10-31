@@ -68,8 +68,11 @@ cd /Users/max/codebase/comedy && /Users/max/codebase/ComfyUI/.venv/bin/python \
 （选空档中点那句，且与相邻高亮句至少隔 3 行）。过关线：`≈180–200s`、`首爆 ≤15s`、
 `最大空档 ≤32s`、无「相邻过近」、punch 总数 10–14。它只是估算，真值以成片 QA 为准。
 
-改完 punch 只影响画面（高亮字幕 + 角色跳一下），不用重配音：
-`gen_voice.py --ep N --resume` 复用已有 wav 重建 timing.json，再 `make_episode.py --ep N --skip-voice`。
+改完 punch 只影响画面（高亮字幕 + 角色跳一下），不进音频时长：`gen_voice.py` 只是把它从
+`LINES` 抄进 `timing.json`。所以重渲不需要重配音，也不需要再跑一次 TTS 进程——
+直接把剧本里的 punch 覆盖回 `timing.json` 的对应字段，删掉旧 mp4 让渲染 worker 重渲即可。
+判断哪一集需要这样做要比对逐句 punch 集合，不能比 mtime：TTS 进程 import 剧本的时刻可能
+早于你的修改，而它写出的 timing.json 反而更新。文本或说话人不一致才是真脏，必须重配音。
 
 成片校验用 `~/.qoder/skills/puppet-talk-render/scripts/qa_episode.py --ep NN`
 （分辨率、时长、响度 −15 LUFS / TP ≤ −1、字幕宽度、封面窗口）。

@@ -130,4 +130,5 @@ script_epNN.py ──gen_voice.py──> audio/epNN/{lines/*.wav, voice_full.wav
 ## Resources
 
 - [references/ip-build.md](references/ip-build.md) — 概念图 prompt 配方、`build_alpha` 抠图为什么用「边界泛洪 + 最大连通块」、五官坐标怎么标定、换形象的检查清单。
+- [scripts/sync_punch.py](scripts/sync_punch.py) — 改完 `punch` 后把标记同步进 `timing.json` 并把旧成片挪出根目录（零 GPU，不用重配音，也不用再起 TTS 进程）。
 - 三个子 skill：`baozai-standup`、`qwen3-tts-voice`、`puppet-talk-render`（含 `scripts/qa_episode.py`）。
