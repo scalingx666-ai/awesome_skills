@@ -19,6 +19,25 @@ description: 用本地 Qwen3-TTS（MLX，Apple Silicon）生成固定音色中�
 2. 克隆验证：`lock_voice.py` → `model.generate(text=..., ref_audio=REF, ref_text=REF_TEXT, lang_code="chinese")`，再用 `model.extract_speaker_embedding(audio, 24000)` 与参考音频算余弦。**≥ 0.99 才算锁住**（包仔实测 0.992–0.994）。
 3. 固定 `REF` 与 `REF_TEXT` 两个常量，之后所有集都不许改；改音色 = 换 IP，需用户同意。
 
+## 加第二个角色（女包仔「小满」）
+
+`cd /Users/max/codebase/tts && /Users/max/codebase/tts/bin/python make_girl_voice.py`
+→ `out/voices/girl_locked.wav` + `girl_voice.json`（含 `ref_text` 与 `pitch_factor`）。三个坑：
+
+1. **说话人 embedding 分不出"是不是同一个人"**：这套栈里任意两个中文声的余弦都在 0.95–0.99，
+   用它当"和男主不同"的门槛永远过不了。它只能当**稳定性**指标（同一音色逐句 ≥0.95）。
+2. **区分度要用中位 F0 比值**：`voice_pitch.py <wav>` 打印 dur / f0 中位数 / p25 / p75 / 浊音占比 / 频谱质心
+   （自相关法，60–500Hz 搜基频，`ac[pick] < 0.3*ac[0]` 当清音门）。女声目标：`median_f0(女)/median_f0(男) ≈ 1.30`，低于 1.25 判"听不出是两个人"。
+3. **Base 克隆会把音高拽回参考说话人的音区**：393Hz 的 VoiceDesign 参考，克隆出来的句子只有 316–343Hz
+   （比值掉到 1.06）。所以验收要量**克隆后的行**，再算
+   `pitch_factor = clamp(1.30 × male_f0 / median(clone_f0), 1.0, 1.30)`（实测 1.0955），
+   由 `gen_voice.py` 的 `retune()` 逐句套 `asetrate={SR*f},aresample={SR},atempo={1/f}`（保时长上抬音高）。
+
+两个角色的实测语速不同：**包仔 ≈6.0 字/秒，小满 ≈5.2 字/秒**（规划按 ≈5.6 混算），
+比脱口秀档的 4.7 字/秒快，估时长别沿用老数字。台本里 `who` 取 `bao`/`girl`，
+`VOICES` 里没有的角色（`bao_mom`/`girl_mom`）走"借主角音色 + `PITCH` 下压"，
+`PITCH = {"bao_mom": 0.80, "girl_mom": 0.82}`——不新增音色，只加变声。
+
 ## 生成一集配音
 
 ```bash

@@ -1,6 +1,6 @@
 ---
 name: baozai-standup
-description: 包仔（原创小笼包吉祥物）竖屏脱口秀系列的 IP 圣经与写稿流程：三幕专场结构、script_epNN.py 台词数据格式、punch/laugh/pause/chapter/AI 打断标记、时长估算与爆点设计。Use when 写或改包仔段子、规划新一集 EP、评估段子好不好笑、检查人设/音色/前作 callback 是否一致。不负责配音与渲染（见 qwen3-tts-voice、puppet-talk-render）。
+description: 包仔（原创小笼包吉祥物）竖屏系列的 IP 圣经与写稿流程：三幕专场结构、script_epNN.py 台词数据格式、punch/laugh/pause/chapter/AI 打断标记、时长估算与爆点设计；另有 EP06 起的「情侣日常」双人对戏档（3 分钟、男女两个包仔、SCENE 字段）。Use when 写或改包仔段子/情侣对白、规划新一集 EP、评估段子好不好笑、检查人设/音色/前作 callback 是否一致。不负责配音与渲染（见 qwen3-tts-voice、puppet-talk-render）。
 ---
 
 # 包仔脱口秀 · 写稿
@@ -23,7 +23,20 @@ description: 包仔（原创小笼包吉祥物）竖屏脱口秀系列的 IP 圣
 4. 自检：句长 ≤ 34 字、章卡句 `pause_before >= 1.25`、末句 `applause=True`、至少 2 处 callback 前作、1 处 AI 打断。
 5. 交给配音与渲染 skill；成片后用 `puppet-talk-render/scripts/qa_episode.py --ep NN` 复核。
 
-## 硬规则（来自用户反馈）
+## 情侣日常档（EP06 起，3 分钟双人对戏）
+
+脱口秀档掉量后开的第二条产品线：一男一女两个包仔（包仔 + 小满）在家里为一件小事拉扯，
+无观众、无麦克风、纯人声。**细则全部在 [references/couple-format.md](references/couple-format.md)**，
+写之前必须读它——它规定了 60–64 句 / 860–920 字 / 停顿 28–36s 的配额（这是 3 分钟的命门：
+实测包仔 ≈6.0 字/秒、小满 ≈5.2 字/秒，混合 ≈5.6 字/秒）、三幕与反转位置、
+`SCENE = dict(title, room, cover)` 字段、结尾「一句甜 + 一句现实」的固定母题。
+
+与脱口秀档的三个根本差别：
+1. **节奏靠语流不靠留白**：接话停顿压到 0.15–0.30s，脱口秀那种 1.2s 等笑的停顿会把这档拖死；
+2. **`punch` 两边都要给**（各占一半），她不是捧哏；
+3. **没有观众反应可依赖**，所以钩子必须在 14 秒内落地，反转必须真的推翻前提。
+
+## 硬规则（来自用户反馈，脱口秀档）
 
 - **时长**：正片 5 分钟以上。60 秒一条被判「太短、没看点爆点」，EP04 8 分钟专场才通过。
 - **内涵**：至少一段「笑着笑着不笑了」的落点（EP04：「我唯一没教它的，是我也会累」），且紧跟一个笑点把气氛拉回来，不要变成说教。
@@ -36,3 +49,4 @@ description: 包仔（原创小笼包吉祥物）竖屏脱口秀系列的 IP 圣
 
 - [references/ip-bible.md](references/ip-bible.md) — 人设、世界观、音色、EP01–EP04 系列日志与 callback 网、平台规格、禁忌。
 - [references/script-schema.md](references/script-schema.md) — `LINES` 字段全解、停顿/笑声取值表、时长估算公式、三幕模板、自检清单。
+- [references/couple-format.md](references/couple-format.md) — 情侣日常档（EP06 起）：两个角色、3 分钟配额、`SCENE` 字段、结尾母题、自检命令。

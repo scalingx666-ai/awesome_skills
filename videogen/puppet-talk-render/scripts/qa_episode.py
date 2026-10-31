@@ -113,11 +113,17 @@ def main():
 
     loud = loudness(video)
     if loud:
-        ok = -16.5 <= loud["i"] <= -13.5 and loud["tp"] <= 0.0
+        ok = -16.5 <= loud["i"] <= -13.5 and loud["tp"] <= -1.0
         r.add(PASS if ok else FAIL, "loudness",
               f"{loud['i']:.1f} LUFS / TP {loud['tp']:.1f} dB / LRA {loud['lra']:.1f}")
     else:
         r.add(WARN, "loudness", "could not measure")
+
+    if 150.0 <= v["dur"] <= 215.0:
+        r.add(PASS, "length", f"{v['dur']:.0f}s 落在 3 分钟档（150–215s）")
+    else:
+        r.add(WARN, "length", f"{v['dur']:.0f}s 不在 3 分钟档：加/减台词，"
+                             f"每 60 字 ≈ 10.7s（实测 ≈5.6 字/秒）")
 
     x = decode_audio(video)
     r.add(PASS if abs(len(x) / SR - v["dur"]) < 0.3 else FAIL, "av-sync",
@@ -172,12 +178,15 @@ def main():
         r.add(PASS if not long_lines else WARN, "subtitle-fit",
               f"{len(script)} lines, longest {max(len(l['text']) for l in script)} chars"
               + (f"; over 40: {long_lines[:6]}" if long_lines else ""))
-        ai_bad = [l["id"] for l in script if l.get("who") == "ai" and l.get("pause_before", 0) < 0.7]
-        r.add(PASS if not ai_bad else WARN, "ai-chime",
-              f"AI lines need pause_before >= 0.7s for the chime"
-              + (f"; short: {ai_bad}" if ai_bad else ""))
-        r.add(PASS if script[-1].get("applause") else WARN, "outro",
-              "last line applause=True keeps the 1.4s reaction tail")
+        # the AI chime and the applause tail both live inside build_mix's crowd branch,
+        # so a crowd-free episode (小剧场) has nothing for these two to enforce
+        if any(l.get("laugh") or l.get("applause") for l in script):
+            ai_bad = [l["id"] for l in script if l.get("who") == "ai" and l.get("pause_before", 0) < 0.7]
+            r.add(PASS if not ai_bad else WARN, "ai-chime",
+                  f"AI lines need pause_before >= 0.7s for the chime"
+                  + (f"; short: {ai_bad}" if ai_bad else ""))
+            r.add(PASS if script[-1].get("applause") else WARN, "outro",
+                  "last line applause=True keeps the 1.4s reaction tail")
 
     # chapter card sits 1.25s before its line; the previous subtitle lingers 0.45s
     clash = []
