@@ -50,8 +50,8 @@ LINES = [
 | 全集字数 | 860–920（≈5.6 字/秒 ⇒ 台词 155–165s，加停顿正好 3 分钟） |
 | 停顿之和 | `sum(pause_before + pause_after)` 落在 28–36 秒；单值：接话 0.15–0.30，转折 0.5–0.90，最大不超过 1.2 |
 | 单句长度 | ≤ 28 字（含标点），不换行、不嵌套引号、不用 emoji |
-| `who` | 只有 `"bao"` / `"girl"`，不要旁白、观众、AI、妈妈（需要别人说话时转述） |
-| `punch=True` | 全集 10–14 个，两人各占约一半，相邻两个至少隔 3 行（这是角色跳一下的爆点标记） |
+| `who` | 同框只有 `"bao"` / `"girl"`；长辈一律画外音 `"bao_mom"` / `"girl_mom"`（借主角音色 + `PITCH` 下压，名牌挂两侧，画面不动嘴），不要旁白/观众/AI |
+| `punch=True` | 全集 10–14 个，两人各占约一半，相邻两个至少隔 3 行。**时间上**：首个 punch 必须落在前 15 秒内（抖音的留存窗口），且任意两个高亮句之间（含开场到首个、末个到结尾）不超过 32 秒，否则中段会连着几十秒白字幕 |
 | 禁用字段 | `laugh` / `applause` / `chapter` / `hook`（情侣档没有观众，写了也没人接） |
 | 语言 | 中文口语，能直接读出来；无品牌名、无脏话、无性暗示、无地域/性别/疾病梗、无网络烂梗（yyds、绝绝子之类） |
 | callback | 至少回收 2 个旧梗（漏汤、被蒸、褶子、馅儿、一屉、蒸笼、"碗你洗"），再种 1 个新梗 |
@@ -64,12 +64,19 @@ import importlib
 for n in [6,7]:
     m=importlib.import_module(f'script_ep{n:02d}'); L=m.LINES; S=m.SCENE
     c=sum(len(l['text']) for l in L); p=sum(l['pause_before']+l['pause_after'] for l in L)
-    w={}
-    for l in L: w[l['who']]=w.get(l['who'],0)+1
-    print(n,len(L),f'{c}字 {p:.0f}s停顿',w,'punch',sum(1 for l in L if l['punch']),
-          '最长',max(len(l['text']) for l in L),'room',S['room'])
+    w={}; t=0.0; ps=[]
+    for l in L:
+        w[l['who']]=w.get(l['who'],0)+1
+        t+=l['pause_before']
+        if l['punch']: ps.append(t)
+        t+=len(l['text'])/(6.0 if l['who']=='bao' else 5.2)+l['pause_after']
+    lull=max([ps[0]]+[b-a for a,b in zip(ps,ps[1:])]+[t-ps[-1]])
+    print(n,len(L),f'{c}字 {p:.0f}s停顿 ≈{t:.0f}s',w,'punch',len(ps),
+          f'首爆{ps[0]:.0f}s 最大空档{lull:.0f}s','最长',max(len(l['text']) for l in L),'room',S['room'])
 "
 ```
+
+过关线：`≈` 落在 180–200s、`首爆 ≤15s`、`最大空档 ≤32s`。
 
 成片校验用 `~/.qoder/skills/puppet-talk-render/scripts/qa_episode.py --ep NN`
 （分辨率、时长、响度 −15 LUFS / TP ≤ −1、字幕宽度、封面窗口）。

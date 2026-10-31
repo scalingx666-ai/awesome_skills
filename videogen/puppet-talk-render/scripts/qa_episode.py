@@ -229,12 +229,17 @@ def main():
     ps = [l for l in lines if l.get("punch")]
     if ps:
         edges = [(a, b) for a, b in zip(ps, ps[1:])]
-        worst = max(edges, key=lambda e: e[1]["start"] - e[0]["start"]) if edges else (None, None)
+        worst = max(edges, key=lambda e: e[1]["start"] - e[0]["start"]) if edges else (ps[0], ps[0])
         head, tail = ps[0]["start"], v["dur"] - ps[-1]["start"]
         gap = max(worst[1]["start"] - worst[0]["start"] if edges else 0, head, tail)
-        r.add(PASS if gap <= 32 else WARN, "punch-cadence",
-              f"{len(ps)} punches, avg {v['dur'] / len(ps):.0f}s apart, longest lull {gap:.0f}s"
-              + ("" if gap <= 32 else f" after {worst[0]['id']}「{worst[0]['text'][:12]}…」 -> 给这段补一个 punch=True"))
+        late = head > 15
+        lvl = PASS if gap <= 32 and not late else WARN
+        r.add(lvl, "punch-cadence",
+              f"{len(ps)} punches, first at {head:.0f}s, avg {v['dur'] / len(ps):.0f}s apart, longest lull {gap:.0f}s"
+              + ("" if lvl == PASS else
+                 f" -> {'开场 15s 内没有高亮句' if late else ''}"
+                 f"{' / ' if late and gap > 32 else ''}"
+                 f"{'补一个 punch=True 在 ' + worst[0]['id'] + '「' + worst[0]['text'][:12] + '…」之后' if gap > 32 else ''}"))
     else:
         r.add(FAIL, "punch-cadence", "no line marked punch=True")
 
