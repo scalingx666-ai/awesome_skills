@@ -47,6 +47,7 @@ description: 包仔（原创小笼包吉祥物）竖屏系列的 IP 圣经与写
 
 ## Resources
 
-- [references/ip-bible.md](references/ip-bible.md) — 人设、世界观、音色、EP01–EP04 系列日志与 callback 网、平台规格、禁忌。
+- [references/ip-bible.md](references/ip-bible.md) — 人设、世界观、两个角色的音色、EP01–EP35 系列日志与 callback 网、平台规格、禁忌。
 - [references/script-schema.md](references/script-schema.md) — `LINES` 字段全解、停顿/笑声取值表、时长估算公式、三幕模板、自检清单。
 - [references/couple-format.md](references/couple-format.md) — 情侣日常档（EP06 起）：两个角色、3 分钟配额、`SCENE` 字段、结尾母题、自检命令。
+- [scripts/punch_precheck.py](scripts/punch_precheck.py) — 写稿阶段的高亮节奏体检：估时间轴、报「首爆/最大空档/相邻过近」，并点名该改哪一句的 `punch`。

@@ -59,24 +59,17 @@ LINES = [
 ## 自检（写完必须跑，不达标就改）
 
 ```
-cd /Users/max/codebase/comedy && /Users/max/codebase/ComfyUI/.venv/bin/python -c "
-import importlib
-for n in [6,7]:
-    m=importlib.import_module(f'script_ep{n:02d}'); L=m.LINES; S=m.SCENE
-    c=sum(len(l['text']) for l in L); p=sum(l['pause_before']+l['pause_after'] for l in L)
-    w={}; t=0.0; ps=[]
-    for l in L:
-        w[l['who']]=w.get(l['who'],0)+1
-        t+=l['pause_before']
-        if l['punch']: ps.append(t)
-        t+=len(l['text'])/(6.0 if l['who']=='bao' else 5.2)+l['pause_after']
-    lull=max([ps[0]]+[b-a for a,b in zip(ps,ps[1:])]+[t-ps[-1]])
-    print(n,len(L),f'{c}字 {p:.0f}s停顿 ≈{t:.0f}s',w,'punch',len(ps),
-          f'首爆{ps[0]:.0f}s 最大空档{lull:.0f}s','最长',max(len(l['text']) for l in L),'room',S['room'])
-"
+cd /Users/max/codebase/comedy && /Users/max/codebase/ComfyUI/.venv/bin/python \
+  ~/.qoder/skills/baozai-standup/scripts/punch_precheck.py 6 7 8
 ```
 
-过关线：`≈` 落在 180–200s、`首爆 ≤15s`、`最大空档 ≤32s`。
+逐句按「字数 ÷ 该角色语速（包仔 5.4 / 小满 5.0 / 长辈 4.6 字每秒）+ 前后停顿」估时间轴，
+输出 `句数/字数 总秒数 Npunch 首爆Ns 最大空档Ns`，并直接点名该把哪一句改成 `punch=True`
+（选空档中点那句，且与相邻高亮句至少隔 3 行）。过关线：`≈180–200s`、`首爆 ≤15s`、
+`最大空档 ≤32s`、无「相邻过近」、punch 总数 10–14。它只是估算，真值以成片 QA 为准。
+
+改完 punch 只影响画面（高亮字幕 + 角色跳一下），不用重配音：
+`gen_voice.py --ep N --resume` 复用已有 wav 重建 timing.json，再 `make_episode.py --ep N --skip-voice`。
 
 成片校验用 `~/.qoder/skills/puppet-talk-render/scripts/qa_episode.py --ep NN`
 （分辨率、时长、响度 −15 LUFS / TP ≤ −1、字幕宽度、封面窗口）。
