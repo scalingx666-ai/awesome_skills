@@ -81,9 +81,20 @@ $P make_episode.py --ep 21 --ep 22 --ep 23 ...   # 配音→成片→封面→QA
 
 **并发上限就是二**。三条链同时跑时三个 MLX 进程（各约 4GB）互相饿到 6–16s/句，并在半集中途死掉，
 剩下的只有半套 `lines/*.wav`、没有 `timing.json`。所以 `make_episode.py` 的配音固定带 `--resume`：
-`lines/{id}.text` 边车险住当前文本，缺句/改句才重生成。挂了先查 `build/voice_epNN.log`，
-再等**在跑的链少于两条**，用同一批 `--ep` 重排队即可，已完成的集不受影响。渲染日志在
-`build/render_epNN.log`，ffmpeg 报错看 `build/ffmpeg_epNN.log`。
+`lines/{id}.text` 边车险住当前文本，缺句/改句才重生成。挂了先查 `build/voice_epNN.log`。
+
+批量出片更稳的切法是**拆成两路**（实测 EP06–35 那批）：
+
+```bash
+$P make_episode.py --voice-only --ep 10 --ep 22 ...        # 一路：只有它在碰 GPU
+$P make_episode.py --render-ready 6 7 8 ... 35             # 一路：扫「有 timing.json 还没 mp4」的，渲完退出
+until [ "$(ls -1 ep*.mp4 | wc -l)" -ge 35 ]; do 上面那条 --render-ready; sleep 20; done   # 外面套循环
+```
+
+`--voice-only` 独占 GPU、`--render-ready` 吃 CPU，两路真正并行：单跑 TTS 3.4s/句，两条 TTS 链各 6.2s/句
+（合计 3.1s/句，只快 35% 且要担饿死的风险），一 TTS + 一渲染 4.2s/句。渲染比配音快
+（2.5min vs 4.5min），所以一路配音永远喂得饱一路渲染，`timing.json` 只在整集生成完才落盘 → 不会被半集触发。
+`--render-ready` 是幂等的：正在渲的集用 `pgrep` 跳过，半截 mp4（`ffprobe` 读不到 moov）改名成 `epNN.partial` 再重渲。
 
 ## 数据流
 
