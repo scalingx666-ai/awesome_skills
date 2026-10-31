@@ -88,5 +88,5 @@ EP06 起的两角色集不进 `EPISODES` 表——`render.py:couple_episode()` �
 
 - [references/visual-system.md](references/visual-system.md) — 布局常量、动画频率、配色、关键函数索引、加新道具/新舞台的做法（含 ComfyUI FLUX 出图脚本模式）。
 - [references/audio-mix.md](references/audio-mix.md) — 观众声各声部参数、笑声/掌声校准历史、正确的电平测量窗口。
-- [scripts/qa_episode.py](scripts/qa_episode.py) — 一条命令跑完 12 项成片校验（`--ep N [--json]`，无观众档会少掉 crowd/ai-voice/outro 三项），返回码非 0 表示有 FAIL。`punch-cadence` 报 WARN = 有 >32s 没有高亮字幕，给那段补一个 `punch=True` 再重渲。
+- [scripts/qa_episode.py](scripts/qa_episode.py) — 一条命令跑完全部成片校验（`--ep N [--json]`；脱口秀档 14 项、情侣档 12 项，无观众档少掉 crowd/ai-voice/outro 三项），返回码非 0 表示有 FAIL。`punch-cadence` 报 WARN = 有 >32s 没有高亮字幕，给那段补一个 `punch=True` 再重渲。`cover-file` 报 FAIL = 这一集的封面 PNG 根本没生成：封面只在 `render.py --still` 成功时才做，前面全绿也可能漏发。
 - `/Users/max/codebase/comedy/make_episode.py` — 一集一条命令的总驱动（`--ep` 可重复；`--skip-voice` / `--only-cover`），逐集打印 句数/字数/台词秒数、QA 结论与汇总。批量出片时改用 `--voice-only`（独占 GPU 的那一路）+ 循环调 `--render-ready EP…`（吃 CPU 的那一路，幂等，见 `baozai-video-pipeline`）。

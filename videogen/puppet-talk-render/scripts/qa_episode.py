@@ -117,9 +117,11 @@ def main():
     sys.path.insert(0, str(root))
     try:
         import importlib
-        script = importlib.import_module(f"script_{tag}").LINES
+        ep_mod = importlib.import_module(f"script_{tag}")
+        script = ep_mod.LINES
     except Exception as e:
         script = None
+        ep_mod = None
         r.add(WARN, "script", f"cannot import script_{tag}: {e}")
 
     v = probe(video)
@@ -261,6 +263,18 @@ def main():
     clean = [g for g in gaps if g[1] > g[0]]
     r.add(PASS if clean else WARN, "cover-frame",
           f"{len(clean)} subtitle-free window(s) >= 0.05s, e.g. {clean[:3]}")
+
+    # the still/make_cover step only runs when render.py --still succeeded, so a green QA above
+    # can still mean the episode shipped without its thumbnail
+    cover = root / f"{tag}_cover.png"
+    scene = getattr(ep_mod, "SCENE", None) or {}
+    if cover.exists():
+        r.add(PASS, "cover-file", f"{cover.name} {cover.stat().st_size // 1024}KB")
+    elif scene.get("cover"):
+        r.add(FAIL, "cover-file", f"missing {cover.name}; make_cover 步骤没跑或失败"
+              f"（SCENE['cover']={scene['cover']}）")
+    else:
+        r.add(WARN, "cover-file", f"missing {cover.name} and script has no SCENE['cover']")
 
     print_report(r, args.json)
     return 0 if r else 1
