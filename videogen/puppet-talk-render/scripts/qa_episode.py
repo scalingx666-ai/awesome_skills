@@ -225,6 +225,19 @@ def main():
             r.add(PASS if script[-1].get("applause") else WARN, "outro",
                   "last line applause=True keeps the 1.4s reaction tail")
 
+    # punch = the highlighted subtitle; a stretch without one reads as a lull on Douyin
+    ps = [l for l in lines if l.get("punch")]
+    if ps:
+        edges = [(a, b) for a, b in zip(ps, ps[1:])]
+        worst = max(edges, key=lambda e: e[1]["start"] - e[0]["start"]) if edges else (None, None)
+        head, tail = ps[0]["start"], v["dur"] - ps[-1]["start"]
+        gap = max(worst[1]["start"] - worst[0]["start"] if edges else 0, head, tail)
+        r.add(PASS if gap <= 32 else WARN, "punch-cadence",
+              f"{len(ps)} punches, avg {v['dur'] / len(ps):.0f}s apart, longest lull {gap:.0f}s"
+              + ("" if gap <= 32 else f" after {worst[0]['id']}「{worst[0]['text'][:12]}…」 -> 给这段补一个 punch=True"))
+    else:
+        r.add(FAIL, "punch-cadence", "no line marked punch=True")
+
     # chapter card sits 1.25s before its line; the previous subtitle lingers 0.45s
     clash = []
     for i, l in enumerate(lines):
