@@ -131,4 +131,6 @@ script_epNN.py ──gen_voice.py──> audio/epNN/{lines/*.wav, voice_full.wav
 
 - [references/ip-build.md](references/ip-build.md) — 概念图 prompt 配方、`build_alpha` 抠图为什么用「边界泛洪 + 最大连通块」、五官坐标怎么标定、换形象的检查清单。
 - [scripts/sync_punch.py](scripts/sync_punch.py) — 改完 `punch` 后把标记同步进 `timing.json` 并把旧成片挪出根目录（零 GPU，不用重配音，也不用再起 TTS 进程）。
+- [scripts/qa_watch.py](scripts/qa_watch.py) — 批量出片时的「边等边验」：每 20s 扫一遍 ep06–35，谁的 mp4+封面刚齐就跑谁的 13 项 QA，绿了才写 `build/qa/epNN.ok`（按 mp4 字节数记账，重渲会自动重验）。`--budget 540` 跑一轮就是一次阻塞等待 + 一次全量核对，`ALL 30 GREEN` 即收工；正在渲染的集会跳过，不会误报。
+- [scripts/delivery_report.py](scripts/delivery_report.py) — 交付口径的逐集台账（句数/成片秒数/封面/台词·说话人·punch 是否与剧本一致），`--qa` 再叠一层 QA；末行给出 `过关 N/30`。它和 qa_watch 互补：这个查「稿与片是否同源」，那个查「画面/响度/封面是否达标」。
 - 三个子 skill：`baozai-standup`、`qwen3-tts-voice`、`puppet-talk-render`（含 `scripts/qa_episode.py`）。

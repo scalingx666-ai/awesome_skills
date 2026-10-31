@@ -16,7 +16,7 @@ description: 包仔竖屏脱口秀的成片渲染：render.py 的 EPISODES 配�
 ```bash
 cd /Users/max/codebase/comedy
 /Users/max/codebase/ComfyUI/.venv/bin/python make_episode.py --ep 21 --ep 22   # 可一次排多集
-# 只补封面：--skip-voice --only-cover ；只重渲画面：--skip-voice
+# 只补封面：--only-cover（已隐含 --skip-voice，别再叠一层，否则会和唯一那路 TTS 抢 GPU）；只重渲画面：--skip-voice
 ```
 
 手工分步（要单独调某一环时）：
@@ -26,7 +26,10 @@ cd /Users/max/codebase/comedy
 /Users/max/codebase/ComfyUI/.venv/bin/python render.py --ep 5 --still 0.8
 # 2) 全片渲染：约 36–40fps 吞吐，3 分钟片子约 2.5min → 必须后台跑
 /Users/max/codebase/ComfyUI/.venv/bin/python render.py --ep 5 > build/render_ep05.log 2>&1
-# 3) 封面：压标题的 still 由 make_episode.py 选（35% 处最近的爆点句 +0.35s）
+# 3) 封面：压标题的 still 由 make_episode.py 选（35% 处最近的爆点句 +0.35s），必须带 --no-sub
+#    爆点句正好有台词，无字幕窗口只有 0.05–0.15s，所以封面上的对白一定和主标题打架。
+#    --no-sub 只压掉台词与名牌，舞台/两个角色/角标照画。
+/Users/max/codebase/ComfyUI/.venv/bin/python render.py --ep 5 --still 46.4 --no-sub
 /Users/max/codebase/ComfyUI/.venv/bin/python make_cover.py build/still_ep05_46.4.png "主标题" "副标题" ep05_cover.png
 # 4) 自动校验
 /Users/max/codebase/ComfyUI/.venv/bin/python /Users/max/.qoder/skills/puppet-talk-render/scripts/qa_episode.py --ep 5
@@ -89,4 +92,4 @@ EP06 起的两角色集不进 `EPISODES` 表——`render.py:couple_episode()` �
 - [references/visual-system.md](references/visual-system.md) — 布局常量、动画频率、配色、关键函数索引、加新道具/新舞台的做法（含 ComfyUI FLUX 出图脚本模式）。
 - [references/audio-mix.md](references/audio-mix.md) — 观众声各声部参数、笑声/掌声校准历史、正确的电平测量窗口。
 - [scripts/qa_episode.py](scripts/qa_episode.py) — 一条命令跑完全部成片校验（`--ep N [--json]`；脱口秀档 14 项、情侣档 12 项，无观众档少掉 crowd/ai-voice/outro 三项），返回码非 0 表示有 FAIL。`punch-cadence` 报 WARN = 有 >32s 没有高亮字幕，给那段补一个 `punch=True` 再重渲。`cover-file` 报 FAIL = 这一集的封面 PNG 根本没生成：封面只在 `render.py --still` 成功时才做，前面全绿也可能漏发。
-- `/Users/max/codebase/comedy/make_episode.py` — 一集一条命令的总驱动（`--ep` 可重复；`--skip-voice` / `--only-cover`），逐集打印 句数/字数/台词秒数、QA 结论与汇总。批量出片时改用 `--voice-only`（独占 GPU 的那一路）+ 循环调 `--render-ready EP…`（吃 CPU 的那一路，幂等，见 `baozai-video-pipeline`）。
+- `/Users/max/codebase/comedy/make_episode.py` — 一集一条命令的总驱动（`--ep` 可重复；`--skip-voice` / `--only-cover`），逐集打印 句数/字数/台词秒数、QA 结论与汇总。批量出片时改用 `--voice-only`（独占 GPU 的那一路）+ 循环调 `--render-ready EP…`（吃 CPU 的那一路，幂等，见 `baozai-video-pipeline`）。**坑**：一个 `--render-ready` pass 会把 ready 的集一口气做完才退出，进程里吃的是启动那一刻的代码；改了 `make_episode.py` 想让批处理生效，必须等这一 pass 结束或杀掉它（外层 `until` 循环 20s 内会用新代码重启，被截断的 mp4 会被 `ready_to_render` 挪成 `.partial` 重渲，安全）。
