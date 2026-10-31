@@ -75,6 +75,26 @@ def centroid(x, sr, a, b):
     return float((spec * freq).sum() / (spec.sum() + 1e-9))
 
 
+def f0_track(a, sr, fmin=60.0, fmax=500.0, frame=0.04, hop=0.02):
+    """Median fundamental per voiced frame, autocorrelation via FFT (fast enough for a whole episode)."""
+    win, st = int(frame * sr), int(hop * sr)
+    lo, hi = int(sr / fmax), int(sr / fmin)
+    n = 1 << (2 * win - 1).bit_length()
+    out = []
+    for i in range(0, max(0, len(a) - win), st):
+        seg = a[i:i + win]
+        seg = seg - seg.mean()
+        if (seg ** 2).mean() < 1e-6:
+            continue
+        s = np.fft.rfft(seg, n)
+        ac = np.fft.irfft(s * np.conj(s))[:win]
+        band = ac[lo:hi]
+        if band.max() < 0.3 * ac[0]:
+            continue
+        out.append(sr / (lo + int(np.argmax(band))))
+    return np.array(out)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ep", type=int, required=True)
@@ -172,6 +192,23 @@ def main():
                 bad += 1
         r.add(PASS if bad == 0 else WARN, "ai-voice",
               f"{len(ai)} AI line(s) expected below neighbouring speech; " + "; ".join(rows[:4]))
+
+    # 两个角色分不分得开只能用音高判断：说话人 embedding 里任意两声都在 0.95 以上
+    if any(l.get("who") == "bao" for l in lines) and any(l.get("who") == "girl" for l in lines):
+        med = {}
+        for w in ("bao", "girl"):
+            frames = []
+            for l in lines:
+                if l.get("who") != w:
+                    continue
+                seg = x[int((l["start"] + 0.08) * SR):int(min(l["end"], l["start"] + 3.0) * SR)]
+                frames.append(f0_track(seg, SR))
+            frames = [f for f in frames if len(f)]
+            med[w] = float(np.median(np.concatenate(frames))) if frames else 0.0
+        ratio = med["girl"] / med["bao"] if med["bao"] else 0.0
+        r.add(PASS if ratio >= 1.15 else (WARN if ratio >= 1.05 else FAIL), "voice-split",
+              f"包仔 {med['bao']:.0f}Hz vs 小满 {med['girl']:.0f}Hz = {ratio:.2f}x"
+              "（<1.15 说明 pitch_factor 没生效或克隆把音高拽平了）")
 
     if script is not None:
         long_lines = [l["id"] for l in script if len(l["text"]) > 40]

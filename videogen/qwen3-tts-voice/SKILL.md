@@ -33,21 +33,26 @@ description: 用本地 Qwen3-TTS（MLX，Apple Silicon）生成固定音色中�
    `pitch_factor = clamp(1.30 × male_f0 / median(clone_f0), 1.0, 1.30)`（实测 1.0955），
    由 `gen_voice.py` 的 `retune()` 逐句套 `asetrate={SR*f},aresample={SR},atempo={1/f}`（保时长上抬音高）。
 
-两个角色的实测语速不同：**包仔 ≈6.0 字/秒，小满 ≈5.2 字/秒**（规划按 ≈5.6 混算），
+两个角色的实测语速不同：**包仔 ≈5.2–5.7 字/秒，小满 ≈4.9–5.0 字/秒**（按 5.4 / 5.0 分角色规划，别混算），
 比脱口秀档的 4.7 字/秒快，估时长别沿用老数字。台本里 `who` 取 `bao`/`girl`，
 `VOICES` 里没有的角色（`bao_mom`/`girl_mom`）走"借主角音色 + `PITCH` 下压"，
 `PITCH = {"bao_mom": 0.80, "girl_mom": 0.82}`——不新增音色，只加变声。
+
+按这套速率，情侣日常档 870 字 + 32s 停顿 ≈ 3 分 05 秒（EP06 实测 197.7s、EP21 实测 201.8s）。
 
 ## 生成一集配音
 
 ```bash
 cd /Users/max/codebase/comedy
-/Users/max/codebase/tts/bin/python gen_voice.py --ep 5   # 后台跑，112 句约 6 分钟
+/Users/max/codebase/tts/bin/python gen_voice.py --ep 5            # 后台跑，112 句约 6 分钟
+/Users/max/codebase/tts/bin/python gen_voice.py --ep 7 --resume   # 只补跑缺失/文本改过的句子
 ```
 
-产出 `audio/ep05/lines/{id}.wav`、`voice_full.wav`（末尾自动 +0.35s）、`timing.json`。逐句字段与停顿语义见 `baozai-standup/references/script-schema.md`。
+产出 `audio/epNN/lines/{id}.wav`、`voice_full.wav`（末尾自动 +0.35s）、`timing.json`。逐句字段与停顿语义见 `baozai-standup/references/script-schema.md`。
 
-实测：单句生成 1.8–5.7s（约等于实时），语音长度 ≈ 5.4 汉字/秒；模型加载一次约 10s 级，别为省时间反复重启进程。
+`--resume` 认的是 `lines/{id}.text` 边车（写 wav 的同时写它当初的文本）：文本一致才复用，改过一个字就重生成。所以中途挂掉的集能接着跑，`timing.json` 和 `voice_full.wav` 每次都整体重建。老 wav 没有边车，`make_episode.py` 的 `prime_resume()` 用 mtime 判定（wav 比 `script_epNN.py` 新 = 出自当前文本）补写。
+
+实测：单句生成 1.8–5.7s（约等于实时），语音长度 ≈ 5.4 汉字/秒；模型加载一次约 10s 级，别为省时间反复重启进程。**同时最多跑两条配音链**——三个 MLX 进程（每个常驻约 4GB）会互相饿到 6–16s/句并在半集中途死掉。
 
 ## AI / 机器人角色声
 
@@ -66,6 +71,7 @@ asetrate=19680,aresample=24000,atempo=1.2195122,highpass=f=120,lowpass=f=7000,ae
 ## 常见坑
 
 - 改完 `script_epNN.py` 必须重启生成进程：模块已导入，热改无效。
+- 复用旧 wav 时，`who` 要在「生成 / 复用」分支**外面**取：只在生成分支里赋值，会让复用句挂着上一句的说话人进 `timing.json`，字幕颜色全错。
 - 一次生成一整段长文本会漂移/吞字 → 坚持一句一生成。
 - `r.audio` 是 MLX array，用 `np.asarray(r.audio.tolist(), dtype=np.float32)` 转，别直接 `np.array()`。
 - 采样率断言 24000；换模型要一起改 `SR` 与 `robotize` 里的 `asetrate`。

@@ -76,10 +76,14 @@ $P make_episode.py --ep 21 --ep 22 --ep 23 ...   # 配音→成片→封面→QA
 ```
 
 实测（M1 Pro 32GB）：`gen_voice.py` 62–72 句 ≈ 190–230s（RTF≈1，每集重新 load 模型），
-`render.py` 6000 帧 ≈ 130–150s，封面 + QA ≈ 30s ⇒ **一条链 ≈ 5–6min/集**。
-同时开两条链（各占一个 TTS 进程 + 一个渲染进程）能跑到 ≈2.5–3min/集，30 集约 90 分钟；
-再开第三条就要看内存，MLX 每个进程约 4GB。渲染日志在 `build/render_epNN.log`，
-ffmpeg 报错看 `build/ffmpeg_epNN.log`。
+`render.py` 6000 帧 ≈ 130–150s（响度归一已在编码里自动做完），封面 + QA ≈ 30s
+⇒ **一条链 ≈ 5–6min/集**。同时开两条链能摊平到 ≈2.5–3min/集，30 集约 90 分钟。
+
+**并发上限就是二**。三条链同时跑时三个 MLX 进程（各约 4GB）互相饿到 6–16s/句，并在半集中途死掉，
+剩下的只有半套 `lines/*.wav`、没有 `timing.json`。所以 `make_episode.py` 的配音固定带 `--resume`：
+`lines/{id}.text` 边车险住当前文本，缺句/改句才重生成。挂了先查 `build/voice_epNN.log`，
+再等**在跑的链少于两条**，用同一批 `--ep` 重排队即可，已完成的集不受影响。渲染日志在
+`build/render_epNN.log`，ffmpeg 报错看 `build/ffmpeg_epNN.log`。
 
 ## 数据流
 
