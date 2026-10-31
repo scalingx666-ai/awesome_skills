@@ -51,7 +51,7 @@ cd /Users/max/codebase/comedy && /Users/max/codebase/ComfyUI/.venv/bin/python ri
 | 5 | 全片渲染 | `$P render.py --ep 5 > build/ep05_render.log 2>&1`（**后台**） | `ep05.mp4`、`build/ep05_mix.wav` | 14390 帧 ≈ 7min（吞吐约 36fps） | 末行 `ffmpeg rc 0`（ffmpeg 报错看 `build/ffmpeg_ep05.log`）；帧数 = `int((total+tail)*30)`，`render.py:639` |
 | 6 | 响度归一 | 先 `ffmpeg -i ep05.mp4 -af loudnorm=print_format=json -f null -` 量，再 `ffmpeg -c:v copy -af "volume=+<X>dB,alimiter=limit=0.841:level=false"` | `ep05.mp4`（覆盖） | <1min | -15 LUFS ± 1.5、TP ≤ -1 dB |
 | 7 | 封面 | 从 `qa` 报出的无字幕空档抽帧 → `$P make_cover.py <still.png> <主标题> <副标题> <out.png>`（4 个位置参数） | `ep05_cover.png` | 秒级 | 眼睛是睁的、没有章卡压在上面 |
-| 8 | 校验 | `$P /Users/max/.qoder/skills/puppet-talk-render/scripts/qa_episode.py --ep 5` | 12 项结果 | <1min | **0 fail**；warn 要逐条判断 |
+| 8 | 校验 | `$P /Users/max/.qoder/skills/puppet-talk-render/scripts/qa_episode.py --ep 5` | 12 项结果（情侣档 11 项 + `punch-cadence`） | <1min | **0 fail**；warn 要逐条判断 |
 
 第 6 步的增益不是常数，每次都要先量。第 5、6 步之间不要改 `render.py`，改了不生效（进程已加载）。
 
