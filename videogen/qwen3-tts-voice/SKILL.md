@@ -1,0 +1,60 @@
+---
+name: qwen3-tts-voice
+description: 用本地 Qwen3-TTS（MLX，Apple Silicon）生成固定音色中文配音：VoiceDesign 造音色、Base 克隆锁音、逐句生成 + 静音裁剪 + 停顿时间轴 timing.json、机器人/角色变声 DSP、说话人 embedding 相似度与频谱验证。Use when 生成配音、换音色、语速停顿不对、TTS 报错或漂移、做 AI 角色的机械音、给观众做笑声素材。
+---
+
+# 本地 Qwen3-TTS 锁定音色配音
+
+## Overview
+
+一套「先造音色、再永久克隆」的本地配音流程，跑在 M1 Pro 上，无需联网推理。包仔系列用它把 112 句台词变成 `voice_full.wav` + `timing.json`，供 `puppet-talk-render` 做口型与字幕。
+
+- 环境：`/Users/max/codebase/tts`（uv venv，Python 3.12.15，mlx-audio 0.6.3，mlx 0.32.4）
+- 模型：`models/Qwen3-TTS-12Hz-1.7B-VoiceDesign-bf16`（造音色）、`models/Qwen3-TTS-12Hz-1.7B-Base-bf16`（克隆）
+- 输出：24kHz 单声道 int16 wav
+
+## 三步锁音（新 IP 时才做）
+
+1. 造候选：`voice_candidates.py` → `model.generate_voice_design(text, instruct, language="chinese")`，`instruct` 是一句中文音色描述。产出 `out/voices/*.wav`，**人耳试听**后选一个。
+2. 克隆验证：`lock_voice.py` → `model.generate(text=..., ref_audio=REF, ref_text=REF_TEXT, lang_code="chinese")`，再用 `model.extract_speaker_embedding(audio, 24000)` 与参考音频算余弦。**≥ 0.99 才算锁住**（包仔实测 0.992–0.994）。
+3. 固定 `REF` 与 `REF_TEXT` 两个常量，之后所有集都不许改；改音色 = 换 IP，需用户同意。
+
+## 生成一集配音
+
+```bash
+cd /Users/max/codebase/comedy
+/Users/max/codebase/tts/bin/python gen_voice.py --ep 5   # 后台跑，112 句约 6 分钟
+```
+
+产出 `audio/ep05/lines/{id}.wav`、`voice_full.wav`（末尾自动 +0.35s）、`timing.json`。逐句字段与停顿语义见 `baozai-standup/references/script-schema.md`。
+
+实测：单句生成 1.8–5.7s（约等于实时），语音长度 ≈ 5.4 汉字/秒；模型加载一次约 10s 级，别为省时间反复重启进程。
+
+## AI / 机器人角色声
+
+同一锁定音色生成后再 DSP（`gen_voice.py` 里 `robotize()`，对 `who="ai"` 的自动生效）：
+
+```
+asetrate=19680,aresample=24000,atempo=1.2195122,highpass=f=120,lowpass=f=7000,aecho=1.0:0.85:18:0.22
+```
+
+约降 4 个半音再拉回原时长，加高通/低通与短回声。`aecho` 的第一参数 `in_gain` 必须显式写 `1.0`（默认 0.6 会让 AI 句子明显偏小声）。验证看频谱质心：AI 句应低于相邻句（包仔实测 1916/2256 Hz vs 2500–2770 Hz）。
+
+## 观众笑声素材
+
+`make_laugh.py` 用同一锁定音色念「哈哈哈哈哈」等 5 条 takes 存进 `audio/crowd/laugh_*.wav`；叠多少层、变调多少由渲染端随机化（见 `puppet-talk-render`）。**不要**用网络音效包，音色会和全片脱节。
+
+## 常见坑
+
+- 改完 `script_epNN.py` 必须重启生成进程：模块已导入，热改无效。
+- 一次生成一整段长文本会漂移/吞字 → 坚持一句一生成。
+- `r.audio` 是 MLX array，用 `np.asarray(r.audio.tolist(), dtype=np.float32)` 转，别直接 `np.array()`。
+- 采样率断言 24000；换模型要一起改 `SR` 与 `robotize` 里的 `asetrate`。
+- 数字、英文缩写、时间读法不稳（"36度5" 可以，"007" 会念怪）→ 直接在文本里改写法。
+- 停顿只靠 `pause_before/after`，不要在文本里塞空格。
+- 与 ComfyUI 出图同时跑会抢内存，串行执行。
+
+## Resources
+
+- [references/tts-env.md](references/tts-env.md) — 环境重建、模型下载（ModelScope）、目录与常量位置、加新音色。
+- [references/voice-dsp.md](references/voice-dsp.md) — 变声参数逐项解释、其他角色声配方、如何用频谱/嵌入做客观验证。
